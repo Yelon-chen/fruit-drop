@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Watermelon Drop</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <button class="menu-chip" type="button" aria-label="Open menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <section class="stage-shell">
+        <div class="stage-banner">
+          <div class="game-mark">Watermelon Drop</div>
+          <div id="status" class="status" aria-live="polite">
+            Left click to drop the fruit.
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <canvas
+            id="gameCanvas"
+            width="440"
+            height="720"
+            aria-label="Watermelon Drop game board"
+          ></canvas>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="Game information">
+        <section class="ui-card next-card">
+          <span class="ui-card__title">Next</span>
+          <img
+            id="nextFruitPreview"
+            class="next-card__sprite"
+            src="assets/small-banana.svg"
+            alt="Banana"
+          />
+          <strong id="nextFruit" class="next-card__name">Banana</strong>
+        </section>
+
+        <button id="restartButton" class="ui-card action-card" type="button">
+          <span class="ui-card__title">Change</span>
+          <span class="action-card__label">Restart</span>
+        </button>
+
+        <section class="ui-card stack-card">
+          <span class="ui-card__title">Bucket</span>
+          <strong id="fruitCount" class="stack-card__value">0 fruits</strong>
+          <span class="stack-card__hint">Merge matching fruit</span>
+        </section>
+
+        <section class="ui-card score-card">
+          <span class="ui-card__title">Score</span>
+          <strong id="score" class="score-card__value">0</strong>
+        </section>
+      </aside>
+
+      <section class="progression-shell" aria-label="Fruit progression">
+        <div id="fruitProgression" class="progression__track"></div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

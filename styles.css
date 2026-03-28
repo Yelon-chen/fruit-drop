@@ -1,0 +1,325 @@
+:root {
+  color-scheme: light;
+  --bg: #f4aec3;
+  --ink: #2f2437;
+  --cream: #fff8ea;
+  --brown: #b78469;
+  --brown-dark: #3d2d2c;
+  --sage: #d8efbe;
+  --shadow-step: 5px 5px 0 rgba(61, 45, 44, 0.95);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  font-family: "Trebuchet MS", "Avenir Next", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+button,
+input,
+canvas {
+  font: inherit;
+}
+
+.game-shell {
+  width: 100vw;
+  height: 100vh;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 208px;
+  grid-template-rows: minmax(0, 1fr) 126px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.menu-chip,
+.ui-card {
+  border: 5px solid var(--brown-dark);
+  border-radius: 14px;
+  box-shadow: var(--shadow-step);
+}
+
+.menu-chip {
+  align-self: start;
+  justify-self: start;
+  width: 84px;
+  height: 84px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  background: #8d816b;
+  cursor: pointer;
+}
+
+.menu-chip span {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 0;
+  background: #50515a;
+}
+
+.stage-shell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stage-banner {
+  width: 100%;
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.game-mark {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fffaf1;
+  text-shadow:
+    -2px -2px 0 #34264d,
+    2px -2px 0 #34264d,
+    -2px 2px 0 #34264d,
+    2px 2px 0 #34264d;
+}
+
+.status {
+  min-height: 1.2em;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #fffaf1;
+  text-shadow:
+    -1px -1px 0 #34264d,
+    1px -1px 0 #34264d,
+    -1px 1px 0 #34264d,
+    1px 1px 0 #34264d;
+  text-align: center;
+}
+
+.board-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+#gameCanvas {
+  display: block;
+  width: auto;
+  height: min(calc(100vh - 180px), calc((100vw - 360px) * 1.58));
+  max-width: 100%;
+  max-height: 100%;
+  background: transparent;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 0;
+}
+
+.ui-card {
+  padding: 12px;
+  text-align: center;
+  background: var(--brown);
+}
+
+.ui-card__title {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #fffaf1;
+  text-shadow:
+    -2px -2px 0 #34264d,
+    2px -2px 0 #34264d,
+    -2px 2px 0 #34264d,
+    2px 2px 0 #34264d;
+}
+
+.next-card {
+  padding-bottom: 14px;
+}
+
+.next-card__sprite {
+  width: 94px;
+  height: 94px;
+  display: block;
+  object-fit: contain;
+  margin: 10px auto 6px;
+}
+
+.next-card__name {
+  display: block;
+  font-size: 1rem;
+  color: #fffaf1;
+  text-shadow:
+    -1px -1px 0 #34264d,
+    1px -1px 0 #34264d,
+    -1px 1px 0 #34264d,
+    1px 1px 0 #34264d;
+}
+
+.action-card {
+  background: var(--sage);
+  cursor: pointer;
+}
+
+.action-card .ui-card__title {
+  margin-bottom: 10px;
+}
+
+.action-card__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  width: 100%;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #d44d55;
+  font-size: 1.05rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 4px solid var(--brown-dark);
+}
+
+.stack-card {
+  background: #cfe0b5;
+}
+
+.stack-card__value,
+.score-card__value {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #fffaf1;
+  text-shadow:
+    -2px -2px 0 #34264d,
+    2px -2px 0 #34264d,
+    -2px 2px 0 #34264d,
+    2px 2px 0 #34264d;
+}
+
+.stack-card__hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #3b3f34;
+}
+
+.score-card {
+  margin-top: auto;
+}
+
+.progression-shell {
+  grid-column: 2 / 4;
+  position: relative;
+  align-self: end;
+  min-width: 0;
+  width: min(100%, 560px);
+  justify-self: end;
+  padding: 12px 80px 12px 14px;
+  background: var(--cream);
+  border: 6px solid #ffffff;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 5px var(--brown-dark),
+    5px 5px 0 rgba(61, 45, 44, 0.55);
+  clip-path: polygon(0 0, calc(100% - 82px) 0, calc(100% - 82px) 18%, 100% 50%, calc(100% - 82px) 82%, calc(100% - 82px) 100%, 0 100%);
+  overflow: hidden;
+}
+
+.progression__track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 2px;
+}
+
+.progression__item {
+  position: relative;
+  flex: 0 1 54px;
+  min-width: 0;
+  margin-left: -6px;
+  text-align: center;
+  transition: transform 140ms ease, filter 140ms ease;
+  z-index: 1;
+}
+
+.progression__item:first-child {
+  margin-left: 0;
+}
+
+.progression__item--active {
+  transform: translateY(-8px) scale(1.06);
+  filter: brightness(1.04);
+  z-index: 2;
+}
+
+.progression__sprite {
+  width: clamp(40px, 4.8vw, 68px);
+  height: clamp(40px, 4.8vw, 68px);
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+@media (max-width: 980px) {
+  .game-shell {
+    grid-template-columns: 76px minmax(0, 1fr) 172px;
+    grid-template-rows: minmax(0, 1fr) 110px;
+  }
+
+  #gameCanvas {
+    height: min(calc(100vh - 170px), calc((100vw - 300px) * 1.58));
+  }
+
+  .next-card__sprite {
+    width: 76px;
+    height: 76px;
+  }
+
+  .ui-card__title {
+    font-size: 0.82rem;
+  }
+
+  .progression-shell {
+    width: min(100%, 470px);
+    padding-right: 66px;
+    clip-path: polygon(0 0, calc(100% - 68px) 0, calc(100% - 68px) 18%, 100% 50%, calc(100% - 68px) 82%, calc(100% - 68px) 100%, 0 100%);
+  }
+}
