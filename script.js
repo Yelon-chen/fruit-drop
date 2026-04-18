@@ -6,6 +6,7 @@ const nextFruitPreviewEl = document.getElementById("nextFruitPreview");
 const fruitCountEl = document.getElementById("fruitCount");
 const statusEl = document.getElementById("status");
 const restartButton = document.getElementById("restartButton");
+const blendButton = document.getElementById("blendButton");
 const fruitProgressionEl = document.getElementById("fruitProgression");
 
 const WIDTH = canvas.width;
@@ -59,6 +60,11 @@ const gameState = {
   status: "Left click to drop the fruit.",
   gameOver: false,
   overflowTimer: 0,
+  blending: false,
+  blendTimer: 0,
+  blendDuration: 1.45,
+  smoothieColor: "#f7be63",
+  blendParticles: [],
 };
 
 function randomStartingTier() {
@@ -78,6 +84,10 @@ function resetGame() {
   gameState.status = "Left click to drop the fruit.";
   gameState.gameOver = false;
   gameState.overflowTimer = 0;
+  gameState.blending = false;
+  gameState.blendTimer = 0;
+  gameState.smoothieColor = "#f7be63";
+  gameState.blendParticles = [];
   updateHud();
 }
 
@@ -89,6 +99,96 @@ function updateHud() {
   fruitCountEl.textContent = `${gameState.fruits.length} fruit${gameState.fruits.length === 1 ? "" : "s"}`;
   statusEl.textContent = gameState.status;
   updateFruitProgression();
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const value = Number.parseInt(normalized, 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  const toHex = (value) => Math.round(clamp(value, 0, 255)).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function mixSmoothieColor(fruits) {
+  if (fruits.length === 0) {
+    return "#f7be63";
+  }
+
+  let totalWeight = 0;
+  const mixed = { r: 0, g: 0, b: 0 };
+
+  for (const fruit of fruits) {
+    const def = FRUIT_TYPES[fruit.tier];
+    const rgb = hexToRgb(def.color);
+    const weight = fruit.radius * fruit.radius;
+    totalWeight += weight;
+    mixed.r += rgb.r * weight;
+    mixed.g += rgb.g * weight;
+    mixed.b += rgb.b * weight;
+  }
+
+  mixed.r /= totalWeight;
+  mixed.g /= totalWeight;
+  mixed.b /= totalWeight;
+
+  mixed.r = mixed.r * 0.92 + 28;
+  mixed.g = mixed.g * 0.9 + 20;
+  mixed.b = mixed.b * 0.88 + 18;
+  return rgbToHex(mixed);
+}
+
+function createBlendParticles(fruits) {
+  const particles = [];
+
+  for (const fruit of fruits) {
+    const def = FRUIT_TYPES[fruit.tier];
+    const count = Math.max(8, Math.round(fruit.radius / 3));
+
+    for (let index = 0; index < count; index += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 40 + Math.random() * 130;
+      particles.push({
+        x: fruit.x,
+        y: fruit.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 40,
+        size: 3 + Math.random() * 6,
+        color: def.color,
+        alpha: 0.9,
+      });
+    }
+  }
+
+  return particles;
+}
+
+function startBlend() {
+  if (gameState.blending || gameState.gameOver) {
+    return;
+  }
+
+  if (gameState.fruits.length === 0) {
+    gameState.status = "Drop some fruit in the bucket first.";
+    updateHud();
+    return;
+  }
+
+  gameState.blending = true;
+  gameState.blendTimer = 0;
+  gameState.blendDuration = 1.45;
+  gameState.smoothieColor = mixSmoothieColor(gameState.fruits);
+  gameState.blendParticles = createBlendParticles(gameState.fruits);
+  gameState.fruits = [];
+  gameState.cooldown = gameState.blendDuration;
+  gameState.status = "Blending smoothie...";
+  updateHud();
 }
 
 function preloadFruitSprites() {
@@ -145,7 +245,7 @@ function createFruit(tier, x, y, options = {}) {
 }
 
 function spawnFruit(x) {
-  if (gameState.cooldown > 0 || gameState.gameOver) {
+  if (gameState.cooldown > 0 || gameState.gameOver || gameState.blending) {
     return;
   }
 
@@ -337,6 +437,11 @@ function updateOverflow(dt) {
 }
 
 function update(dt) {
+  if (gameState.blending) {
+    updateBlend(dt);
+    return;
+  }
+
   if (gameState.gameOver) {
     return;
   }
@@ -360,6 +465,26 @@ function update(dt) {
   resolveCollisions();
   checkMerges();
   updateOverflow(dt);
+}
+
+function updateBlend(dt) {
+  gameState.blendTimer += dt;
+
+  for (const particle of gameState.blendParticles) {
+    particle.vx *= 0.96;
+    particle.vy = particle.vy * 0.94 + 220 * dt;
+    particle.x += particle.vx * dt;
+    particle.y += particle.vy * dt;
+    particle.alpha = Math.max(0, particle.alpha - dt * 0.7);
+  }
+
+  gameState.blendParticles = gameState.blendParticles.filter((particle) => particle.alpha > 0.04);
+
+  if (gameState.blendTimer >= gameState.blendDuration) {
+    resetGame();
+    gameState.status = "Smoothie done. Start a fresh bucket.";
+    updateHud();
+  }
 }
 
 function pullMatchingFruitPairs(dt) {
@@ -479,8 +604,53 @@ function drawBucket() {
   ctx.restore();
 }
 
+function drawSmoothie() {
+  if (!gameState.blending) {
+    return;
+  }
+
+  const topLeftX = BUCKET.left - 20;
+  const topRightX = BUCKET.right + 20;
+  const bottomLeftX = BUCKET.left + 32;
+  const bottomRightX = BUCKET.right - 32;
+  const progress = clamp(gameState.blendTimer / gameState.blendDuration, 0, 1);
+  const liquidTop = BUCKET.bottom - (BUCKET.bottom - BUCKET.top - 72) * progress;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(topLeftX, BUCKET.top + 52);
+  ctx.lineTo(bottomLeftX, BUCKET.bottom);
+  ctx.lineTo(bottomRightX, BUCKET.bottom);
+  ctx.lineTo(topRightX, BUCKET.top + 52);
+  ctx.closePath();
+  ctx.clip();
+
+  const smoothieGradient = ctx.createLinearGradient(0, liquidTop, 0, BUCKET.bottom);
+  smoothieGradient.addColorStop(0, "#fff6fb");
+  smoothieGradient.addColorStop(0.14, gameState.smoothieColor);
+  smoothieGradient.addColorStop(1, gameState.smoothieColor);
+  ctx.fillStyle = smoothieGradient;
+  ctx.fillRect(topLeftX - 8, liquidTop, topRightX - topLeftX + 16, BUCKET.bottom - liquidTop + 16);
+
+  ctx.fillStyle = "rgba(255,255,255,0.34)";
+  ctx.beginPath();
+  ctx.ellipse(WIDTH / 2, liquidTop + 10, (topRightX - topLeftX) * 0.34, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  for (const particle of gameState.blendParticles) {
+    ctx.globalAlpha = particle.alpha;
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawPreview() {
-  if (gameState.gameOver) {
+  if (gameState.gameOver || gameState.blending) {
     return;
   }
 
@@ -579,6 +749,7 @@ function render() {
   statusEl.textContent = gameState.status;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   drawBackground();
+  drawSmoothie();
   drawPreview();
   drawBucket();
   drawFruits();
@@ -622,6 +793,10 @@ canvas.addEventListener("mousedown", (event) => {
 
 restartButton.addEventListener("click", () => {
   resetGame();
+});
+
+blendButton.addEventListener("click", () => {
+  startBlend();
 });
 
 preloadFruitSprites();
