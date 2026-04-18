@@ -62,8 +62,10 @@ const gameState = {
   overflowTimer: 0,
   blending: false,
   blendTimer: 0,
-  blendDuration: 1.45,
+  blendDuration: 2.6,
   smoothieColor: "#f7be63",
+  smoothieFill: 0.4,
+  smoothieOverflow: false,
   blendParticles: [],
 };
 
@@ -87,6 +89,8 @@ function resetGame() {
   gameState.blending = false;
   gameState.blendTimer = 0;
   gameState.smoothieColor = "#f7be63";
+  gameState.smoothieFill = 0.4;
+  gameState.smoothieOverflow = false;
   gameState.blendParticles = [];
   updateHud();
 }
@@ -123,6 +127,8 @@ function mixSmoothieColor(fruits) {
 
   let totalWeight = 0;
   const mixed = { r: 0, g: 0, b: 0 };
+  let dominantWeight = 0;
+  let dominantRgb = hexToRgb(FRUIT_TYPES[0].color);
 
   for (const fruit of fruits) {
     const def = FRUIT_TYPES[fruit.tier];
@@ -132,16 +138,35 @@ function mixSmoothieColor(fruits) {
     mixed.r += rgb.r * weight;
     mixed.g += rgb.g * weight;
     mixed.b += rgb.b * weight;
+
+    if (weight > dominantWeight) {
+      dominantWeight = weight;
+      dominantRgb = rgb;
+    }
   }
 
   mixed.r /= totalWeight;
   mixed.g /= totalWeight;
   mixed.b /= totalWeight;
 
-  mixed.r = mixed.r * 0.92 + 28;
-  mixed.g = mixed.g * 0.9 + 20;
-  mixed.b = mixed.b * 0.88 + 18;
+  mixed.r = mixed.r * 0.62 + dominantRgb.r * 0.38;
+  mixed.g = mixed.g * 0.62 + dominantRgb.g * 0.38;
+  mixed.b = mixed.b * 0.62 + dominantRgb.b * 0.38;
+
+  mixed.r = mixed.r * 0.98 + 255 * 0.02;
+  mixed.g = mixed.g * 0.98 + 255 * 0.02;
+  mixed.b = mixed.b * 0.98 + 255 * 0.02;
   return rgbToHex(mixed);
+}
+
+function calculateSmoothieFill(fruits) {
+  let totalArea = 0;
+
+  for (const fruit of fruits) {
+    totalArea += Math.PI * fruit.radius * fruit.radius;
+  }
+
+  return clamp(totalArea / 32000, 0.18, 0.9);
 }
 
 function createBlendParticles(fruits) {
@@ -169,7 +194,7 @@ function createBlendParticles(fruits) {
   return particles;
 }
 
-function startBlend() {
+function startBlend(options = {}) {
   if (gameState.blending || gameState.gameOver) {
     return;
   }
@@ -182,12 +207,16 @@ function startBlend() {
 
   gameState.blending = true;
   gameState.blendTimer = 0;
-  gameState.blendDuration = 1.45;
+  gameState.blendDuration = options.overfill ? 3.2 : 2.6;
   gameState.smoothieColor = mixSmoothieColor(gameState.fruits);
+  gameState.smoothieFill = options.overfill ? 1.16 : calculateSmoothieFill(gameState.fruits);
+  gameState.smoothieOverflow = Boolean(options.overfill);
   gameState.blendParticles = createBlendParticles(gameState.fruits);
   gameState.fruits = [];
   gameState.cooldown = gameState.blendDuration;
-  gameState.status = "Blending smoothie...";
+  gameState.status = options.overfill
+    ? "Giant watermelon smoothie! The bucket is overflowing."
+    : "Blending smoothie...";
   updateHud();
 }
 
@@ -356,6 +385,7 @@ function resolveCollisions() {
 function checkMerges() {
   const removed = new Set();
   const additions = [];
+  let shouldAutoBlend = false;
 
   for (let i = 0; i < gameState.fruits.length; i += 1) {
     const a = gameState.fruits[i];
@@ -407,6 +437,10 @@ function checkMerges() {
         nextTier === FRUIT_TYPES.length - 1
           ? "You made a giant watermelon!"
           : `${FRUIT_TYPES[a.tier].name} merged into ${FRUIT_TYPES[nextTier].name}.`;
+
+      if (nextTier === FRUIT_TYPES.length - 1) {
+        shouldAutoBlend = true;
+      }
       break;
     }
   }
@@ -415,6 +449,10 @@ function checkMerges() {
     gameState.fruits = gameState.fruits.filter((fruit) => !removed.has(fruit.id));
     gameState.fruits.push(...additions);
     updateHud();
+
+    if (shouldAutoBlend) {
+      startBlend({ overfill: true });
+    }
   }
 }
 
@@ -614,7 +652,9 @@ function drawSmoothie() {
   const bottomLeftX = BUCKET.left + 32;
   const bottomRightX = BUCKET.right - 32;
   const progress = clamp(gameState.blendTimer / gameState.blendDuration, 0, 1);
-  const liquidTop = BUCKET.bottom - (BUCKET.bottom - BUCKET.top - 72) * progress;
+  const maxFillHeight = BUCKET.bottom - BUCKET.top - 72;
+  const visibleFill = Math.min(1, gameState.smoothieFill);
+  const liquidTop = BUCKET.bottom - maxFillHeight * visibleFill * progress;
 
   ctx.save();
   ctx.beginPath();
@@ -638,6 +678,37 @@ function drawSmoothie() {
   ctx.fill();
 
   ctx.restore();
+
+  if (gameState.smoothieOverflow) {
+    const overflowAmount = Math.max(0, gameState.smoothieFill * progress - 1);
+    if (overflowAmount > 0) {
+      const spillTop = BUCKET.top + 56 - 48 * overflowAmount;
+
+      ctx.fillStyle = gameState.smoothieColor;
+      ctx.beginPath();
+      ctx.ellipse(WIDTH / 2, spillTop, (topRightX - topLeftX) * 0.44, 20 + 28 * overflowAmount, 0, Math.PI, 0, true);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(topLeftX + 34, BUCKET.top + 56);
+      ctx.quadraticCurveTo(topLeftX + 14, BUCKET.top + 80, topLeftX + 22, BUCKET.top + 120 * overflowAmount + 76);
+      ctx.lineTo(topLeftX + 48, BUCKET.top + 56);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(topRightX - 34, BUCKET.top + 56);
+      ctx.quadraticCurveTo(topRightX - 14, BUCKET.top + 88, topRightX - 24, BUCKET.top + 126 * overflowAmount + 72);
+      ctx.lineTo(topRightX - 52, BUCKET.top + 56);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255,255,255,0.22)";
+      ctx.beginPath();
+      ctx.ellipse(WIDTH / 2 - 18, spillTop - 4, (topRightX - topLeftX) * 0.22, 9 + 10 * overflowAmount, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
   for (const particle of gameState.blendParticles) {
     ctx.globalAlpha = particle.alpha;
